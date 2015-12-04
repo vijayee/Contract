@@ -21,6 +21,7 @@ type Workflow struct {
 	completionDate time.Time
 	startDate      time.Time
 	currentTask    int
+	errors         []error
 	sync.Mutex
 }
 
@@ -85,6 +86,9 @@ func (w *Workflow) ExecuteNext() { //blocking
 		} else {
 			jobrunner.Now(&current)
 		}
+		if current.err != nil {
+			w.errors = append(w.errors, current.err)
+		}
 		wg.Wait()
 		w.currentTask++
 
@@ -99,6 +103,8 @@ func (w *Workflow) ExecuteNext() { //blocking
 
 type Task struct {
 	vm             *otto.Otto
+	err            error
+	apis           []string
 	code           string
 	completed      bool
 	completionDate time.Time
@@ -120,6 +126,15 @@ func (t *Task) SetVm(vm *otto.Otto) {
 	t.vm = vm
 }
 
+func (t *Task) requireAPI(name string) {
+	for _, a := range t.apis {
+		if a == name {
+			return
+		}
+	}
+	t.apis = append(t.apis, name)
+}
+
 func (t *Task) SetSchedule(schedule string) {
 	t.schedule = schedule
 }
@@ -135,8 +150,13 @@ func (t *Task) SetWaitGroup(wg *sync.WaitGroup) {
 func (t *Task) Run() {
 	if t.vm != nil {
 		t.Lock()
+		if err := LoadSet(t.apis, t.vm); err != nil {
+			t.err = err
+			t.Unlock()
+			return
+		}
 		t.startDate = time.Now()
-		t.vm.Run(t.code)
+		t.vm.Run(buildModule(t.code, t.apis))
 		t.completionDate = time.Now()
 		t.completed = true
 		t.Unlock()

@@ -22,7 +22,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 
 }
-
 func TestTask(t *testing.T) {
 	initVm()
 	tsk := NewTask()
