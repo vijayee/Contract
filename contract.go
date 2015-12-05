@@ -126,13 +126,20 @@ func (t *Task) SetVm(vm *otto.Otto) {
 	t.vm = vm
 }
 
-func (t *Task) requireAPI(name string) {
-	for _, a := range t.apis {
-		if a == name {
-			return
+func (t *Task) requireAPI(names ...string) {
+	for _, name := range names {
+		found := false
+		for _, a := range t.apis {
+			if a == name {
+				found = true
+				break
+			}
+		}
+		if found == false {
+			t.apis = append(t.apis, name)
 		}
 	}
-	t.apis = append(t.apis, name)
+
 }
 
 func (t *Task) SetSchedule(schedule string) {

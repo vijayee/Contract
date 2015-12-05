@@ -3,6 +3,7 @@ package contract
 import (
 	"errors"
 	"github.com/robertkrimen/otto"
+	//"log"
 	"sync"
 )
 
@@ -46,8 +47,9 @@ func (a *API) SetWrapper(name string, wrap string) {
 
 func (a *API) newGoWrapper(vm *otto.Otto) func(otto.FunctionCall) otto.Value {
 	conv := Converter{vm: vm}
+	funk := a.Function
 	return func(call otto.FunctionCall) otto.Value {
-		return a.Function(call, conv)
+		return funk(call, conv)
 	}
 }
 
@@ -71,21 +73,15 @@ func UnRegister(name string) {
 	delete(registry, name)
 }
 func exists(value string, vm *otto.Otto) bool {
-	_, err := vm.Get(value)
-	return err == nil
+	val, _ := vm.Get(value)
+	exist, _ := val.ToString()
+	return exist != "undefined"
 }
 
 func LoadAll(vm *otto.Otto) error {
-	for key, value := range registry {
-		if exists(key, vm) {
-			return errors.New("Global Namespace Conflict for object name: " + key)
-		}
-		vm.Set(key, value.newGoWrapper(vm))
-		if value.Wrapper != "" && value.jsname != "" {
-			if exists(value.jsname, vm) {
-				return errors.New("Global Namespace Conflict for object name: " + key)
-			}
-			vm.Set(value.jsname, value.Wrapper)
+	for key, _ := range registry {
+		if err := Load(key, vm); err != nil {
+			return err
 		}
 	}
 	return nil
