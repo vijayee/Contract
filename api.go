@@ -28,8 +28,7 @@ func (c *Converter) ToValue(value interface{}) (otto.Value, error) {
 type API struct {
 	name     string
 	Function api    //golang function
-	jsname   string // variable name of javascript accessors
-	Wrapper  string // javascript accessor that must use name field to be accessible
+	Wrapper  Script // javascript wrapper that contain accessors and scoped and descoped variables
 }
 
 func NewApi(name string) API {
@@ -40,8 +39,7 @@ func (a *API) SetFunction(method api) {
 	a.Function = method
 }
 
-func (a *API) SetWrapper(name string, wrap string) {
-	a.jsname = name
+func (a *API) SetWrapper(wrap Script) {
 	a.Wrapper = wrap
 }
 
@@ -97,12 +95,7 @@ func Load(name string, vm *otto.Otto) error {
 	}
 
 	vm.Set(name, current.newGoWrapper(vm))
-	if current.Wrapper != "" && current.jsname != "" {
-		if exists(current.jsname, vm) {
-			return errors.New("Global Namespace Conflict for object name: " + current.jsname)
-		}
-		vm.Set(current.jsname, current.Wrapper)
-	}
+	current.Wrapper.Load(vm)
 	return nil
 }
 
@@ -133,12 +126,22 @@ func buildParametersInputs(nameset []string) (string, string) {
 	parameters := ""
 
 	for _, value := range registry {
-		if value.Wrapper != "" && value.jsname != "" {
+		if &value.Wrapper != nil {
+			for _, scope := range value.Wrapper.scopes {
+				commalist(&parameters, scope)
+				if contains(nameset, value.name) {
+					commalist(&inputs, scope)
+				} else {
+					commalist(&inputs, "null")
+				}
+			}
+			for _, descope := range value.Wrapper.descopes {
+				commalist(&parameters, descope)
+				commalist(&inputs, "null")
+			}
 			commalist(&parameters, value.name)
-			commalist(&parameters, value.jsname)
-			commalist(&inputs, "null")
 			if contains(nameset, value.name) {
-				commalist(&inputs, value.jsname)
+				commalist(&inputs, value.name)
 			} else {
 				commalist(&inputs, "null")
 			}
