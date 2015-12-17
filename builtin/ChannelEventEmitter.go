@@ -3,41 +3,37 @@ package builtin
 import (
 	"github.com/robertkrimen/otto"
 	"github.com/vijayee/Contract"
+	"io/ioutil"
+	"log"
 )
 
 var ChannelEventEmitter contract.API
-var EmitterScript = `
-	var EmitterRegistry=[];
-	var EmitterId= (function(){
-		var current;
-		function init(){
-			return 0;
-		}
-		return{
-			next: function(){
-				if(!current){
-					current= inti();
-				}
-				return ++current;
-			}
-		};
-	})();	
-	
-	var NewEmitter= function(obj){
-		obj.prototype._EmitterId = EmitterId.next();
-		obj.prototype.emit= function(evt, data){
-			Emit(this._EmitterId, evt, data);
-		};
-		EmitterRegistry.push(obj);
-		return obj;
-	};
+var ChannelEventEmitterAnnouncer contract.API
+var Broadcast chan int64 // I perceive a thread safety issues given this is a global
+var emitterScript contract.Script
 
-`
+func init() {
+	Broadcast = make(chan int64, 10)
+	emitterScript = contract.NewScript()
+	script, err := ioutil.ReadFile("EventEmitter.js")
+	if err != nil {
+		return
+	}
+	emitterScript.SetScriptCode(string(script))
+	emitterScript.SetScopedVariable("EventEmitter")
+	ChannelEventEmitter = contract.NewApi("Emit")
+	ChannelEventEmitter.SetFunction(Emit)
+	ChannelEventEmitter.SetWrapper(emitterScript)
+	ChannelEventEmitterAnnouncer = contract.NewApi("Announce")
+	ChannelEventEmitterAnnouncer.SetFunction(Announce)
+	//contract.Register(ChannelEventEmitter)
+	//contract.Register(ChannelEventEmitterAnnouncer)
+}
 
 type Event struct {
-	name  string
-	value otto.Value
-	from  int64
+	name   string
+	values []otto.Value
+	from   int64
 }
 
 var subscribers map[int64]map[string]map[int64]chan Event // ehrmahgaud this is long
@@ -49,7 +45,6 @@ func Emit(call otto.FunctionCall, conv contract.Converter) otto.Value {
 	}
 	jsObjectId := call.ArgumentList[0]
 	jsEventName := call.ArgumentList[1]
-	jsValue := call.ArgumentList[2]
 
 	objectid, err := jsObjectId.ToInteger()
 	if err != nil {
@@ -59,14 +54,30 @@ func Emit(call otto.FunctionCall, conv contract.Converter) otto.Value {
 	if err != nil {
 		return otto.Value{}
 	}
-	EmitOnChannels(Event{name: name, from: objectid, value: jsValue})
+	EmitOnChannels(Event{name: name, from: objectid, values: call.ArgumentList[2:]})
 	return otto.Value{}
+}
 
+func Announce(call otto.FunctionCall, conv contract.Converter) otto.Value {
+	if len(call.ArgumentList) < 1 {
+		return otto.Value{}
+	}
+	jsObjectId := call.ArgumentList[0]
+
+	objectid, err := jsObjectId.ToInteger()
+	if err != nil {
+		return otto.Value{}
+	}
+	Broadcast <- objectid
+
+	return otto.Value{}
 }
 
 func EmitOnChannels(event Event) {
+	log.Printf("This got called")
 	object, ok := subscribers[event.from]
 	if ok == false {
+		log.Printf("no subscribers for %f", event.from)
 		return
 	}
 	events, ok := object[event.name]
@@ -82,6 +93,7 @@ func EmitOnChannels(event Event) {
 		}
 	}
 }
+
 func Subscribe(objectid int64, name string, channel chan Event) {
 	if subscribers == nil {
 		subscribers = make(map[int64]map[string]map[int64]chan Event)
