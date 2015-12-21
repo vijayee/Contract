@@ -53,12 +53,21 @@ func TestBroadcast(t *testing.T) {
 	}
 }
 
-/*
 func TestEvent(t *testing.T) {
 	initVm()
 	contract.Register(ChannelEventEmitter)
 	contract.Register(ChannelEventEmitterAnnouncer)
+	contract.Register(SetTimeout)
 	err := contract.LoadAll(vm)
+
+	script = `
+	(function(){
+		var a= new EventEmitter;
+		var meh = function(){		
+			a.emit('test','omg did it work?');
+		};
+		setTimeout(meh,3000);		
+	})();`
 	if err != nil {
 		t.Error(err)
 	}
@@ -71,18 +80,17 @@ func TestEvent(t *testing.T) {
 	//
 	go func() {
 		_, err = vm.Run(script)
+		if err != nil {
+			t.Error(err)
+		}
 		wg.Done()
 	}()
 	e = <-echan
 
 	wg.Wait()
 
-	if err != nil {
-		t.Error(err)
-	}
 	if &e == nil {
 		t.Error("Unexpected Execution results")
 	}
 
 }
-*/

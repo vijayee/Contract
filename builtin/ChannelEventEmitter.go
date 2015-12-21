@@ -4,12 +4,12 @@ import (
 	"github.com/robertkrimen/otto"
 	"github.com/vijayee/Contract"
 	"io/ioutil"
-	"log"
+	//"log"
 )
 
 var ChannelEventEmitter contract.API
 var ChannelEventEmitterAnnouncer contract.API
-var Broadcast chan int64 // I perceive a thread safety issues given this is a global
+var Broadcast chan int64 // I perceive a thread safety issue given this is a global
 var emitterScript contract.Script
 
 func init() {
@@ -74,10 +74,8 @@ func Announce(call otto.FunctionCall, conv contract.Converter) otto.Value {
 }
 
 func EmitOnChannels(event Event) {
-	log.Printf("This got called")
 	object, ok := subscribers[event.from]
 	if ok == false {
-		log.Printf("no subscribers for %f", event.from)
 		return
 	}
 	events, ok := object[event.name]

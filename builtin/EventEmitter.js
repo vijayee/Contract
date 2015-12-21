@@ -104,7 +104,7 @@
         args = new Array(len);
 		args[0]= this._EmitterId;
 		for (i = 1; i <= arguments.length; i++)
-          args[i] = arguments[i];
+          args[i] = arguments[i-1];
 		Emit.apply(this, args)	
 	  } 
           
