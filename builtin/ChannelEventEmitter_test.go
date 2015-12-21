@@ -21,10 +21,7 @@ func TestMain(m *testing.M) {
 	script = `
 	(function(){
 		var a= new EventEmitter;
-		a.on('test', function(msg){console.log(msg);});
-		for(var i =0; i< 500000; i++){
-			for(var j =0; j< 50; j++);
-		}
+		a.on('test', function(msg){console.log(msg);});		
 		a.emit('test','omg did it work?');
 	})();	`
 	os.Exit(m.Run())
@@ -55,6 +52,8 @@ func TestBroadcast(t *testing.T) {
 		t.Error("Unexpected Execution results")
 	}
 }
+
+/*
 func TestEvent(t *testing.T) {
 	initVm()
 	contract.Register(ChannelEventEmitter)
@@ -86,3 +85,4 @@ func TestEvent(t *testing.T) {
 	}
 
 }
+*/
